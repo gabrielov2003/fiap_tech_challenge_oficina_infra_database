@@ -2,10 +2,18 @@ output "db_endpoint" {
   value = aws_db_instance.this.endpoint
 }
 
-output "db_name" {
-  value = aws_db_instance.this.db_name
+output "db_address" {
+  value = aws_db_instance.this.address
 }
 
 output "db_port" {
   value = aws_db_instance.this.port
+}
+
+output "db_name" {
+  value = aws_db_instance.this.db_name
+}
+
+output "parametros_ssm" {
+  value = "/oficina/db"
 }
