@@ -1,25 +1,25 @@
 # fiap_tech_challenge_oficina_infra_database
 
-Terraform do banco de dados da oficina: uma instância RDS PostgreSQL 16, compartilhada pelos ambientes `dev` e `prod`. Faz parte do Tech Challenge Fase 3:
+Terraform do banco de dados da oficina: uma instância RDS PostgreSQL 16, compartilhada pelos ambientes `dev` e `prod`. É o banco exclusivo do OS Service: nenhum outro serviço acessa esse banco. Faz parte do Tech Challenge Fase 4:
 
 | Repositório | Responsabilidade |
 |---|---|
-| [fiap_tech_challenge_oficina_api](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_api) | Aplicação principal, no EKS |
+| [fiap_tech_challenge_oficina_api](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_api) | OS Service, orquestrador da Saga |
+| [fiap_tech_challenge_oficina_billing_service](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_billing_service) | Orçamentos e pagamentos com Mercado Pago |
+| [fiap_tech_challenge_oficina_execution_service](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_execution_service) | Fila de execução, diagnóstico e reparo |
 | [fiap_tech_challenge_oficina_auth_lambda](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_auth_lambda) | Autenticação por CPF e API Gateway |
-| [fiap_tech_challenge_oficina_infra_k8s](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_infra_k8s) | Rede, cluster EKS, segredos e Datadog |
-| fiap_tech_challenge_oficina_infra_database | Este repositório. Banco de dados RDS PostgreSQL |
+| [fiap_tech_challenge_oficina_infra_k8s](https://github.com/gabrielov2003/fiap_tech_challenge_oficina_infra_k8s) | Rede, cluster EKS, registro de imagens, segredos e Datadog |
+| fiap_tech_challenge_oficina_infra_database | Este repositório. Banco RDS PostgreSQL do OS Service |
 
 ## Arquitetura
 
 ```mermaid
 flowchart LR
     subgraph PRIV["Subnets privadas da VPC do infra_k8s"]
-        API["Pods da API no EKS"]
-        L["Lambda de autenticação"]
+        API["Pods do OS Service no EKS"]
         RDS[("RDS PostgreSQL 16, schemas dev e prod")]
     end
     API -->|"5432, leitura e escrita"| RDS
-    L -->|"5432, consulta o cliente"| RDS
     TF["Terraform deste repositório"] -->|"cria"| RDS
     TF -->|"publica host, porta, usuário e senha"| SSM["SSM /oficina/db"]
 ```
@@ -55,7 +55,7 @@ As tabelas são criadas pela API na inicialização, em `src/infrastructure.py`.
 
 * Instância RDS PostgreSQL 16 `db.t3.micro`, `gp3` criptografado, com autoscaling de armazenamento até 50 GB e backup diário.
 * Subnet group nas subnets privadas da VPC do `infra_k8s`, lidas do SSM.
-* Security group que libera a porta 5432 só para o CIDR da VPC, onde rodam os pods e a Lambda.
+* Security group que libera a porta 5432 só para o CIDR da VPC, onde rodam os pods do OS Service.
 * Senha gerada pelo Terraform e parâmetros de conexão no SSM.
 
 ## Parâmetros no SSM
@@ -76,7 +76,7 @@ O caminho normal é o pipeline em `.github/workflows/ci-cd.yml`:
 | `validate` | Pull requests e pushes em `dev` e `main` | `terraform fmt` e `terraform validate` |
 | `terraform` | Depois do validate | `plan` em pull requests e na `dev`, `apply` no push para `main` |
 
-Secrets: `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`. Variáveis: `TF_STATE_BUCKET` e, opcional, `AWS_REGION`. Como o banco é compartilhado pelos dois ambientes, só a `main` aplica.
+Secrets: `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`. Variáveis: `TF_STATE_BUCKET` e, opcional, `AWS_REGION`. Como o banco é compartilhado pelos dois ambientes, só a `main` aplica. O pipeline lê a chave `/oficina/infra/ligada` no SSM: com a infra desligada, a instância RDS fica fora (os parâmetros de conexão e a senha continuam no SSM). Os workflows Ligar infra e Desligar infra, no `infra_k8s`, sobem e derrubam o banco junto com o cluster.
 
 Manualmente, com Terraform 1.10+, AWS CLI configurado e o `infra_k8s` já aplicado:
 
@@ -87,7 +87,7 @@ terraform apply
 
 Variáveis principais: `region` (padrão `us-east-1`), `instance_class` (`db.t3.micro`), `multi_az` (`false`) e `max_allocated_storage` (`50`). A lista completa está em `variables.tf`.
 
-Ordem do primeiro deploy: `infra_k8s`, este repositório, a API e por último a `auth_lambda`.
+Ordem do primeiro deploy: `infra_k8s`, este repositório, o OS Service, o Billing, o Execution e por último a `auth_lambda`.
 
 ## Documentação
 
