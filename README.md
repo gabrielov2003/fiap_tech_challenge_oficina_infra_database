@@ -76,7 +76,7 @@ O caminho normal é o pipeline em `.github/workflows/ci-cd.yml`:
 | `validate` | Pull requests e pushes em `dev` e `main` | `terraform fmt` e `terraform validate` |
 | `terraform` | Depois do validate | `plan` em pull requests e na `dev`, `apply` no push para `main` |
 
-Secrets: `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`. Variáveis: `TF_STATE_BUCKET` e, opcional, `AWS_REGION`. Como o banco é compartilhado pelos dois ambientes, só a `main` aplica.
+Secrets: `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`. Variáveis: `TF_STATE_BUCKET` e, opcional, `AWS_REGION`. Como o banco é compartilhado pelos dois ambientes, só a `main` aplica. O pipeline lê a chave `/oficina/infra/ligada` no SSM: com a infra desligada, a instância RDS fica fora (os parâmetros de conexão e a senha continuam no SSM). Os workflows Ligar infra e Desligar infra, no `infra_k8s`, sobem e derrubam o banco junto com o cluster.
 
 Manualmente, com Terraform 1.10+, AWS CLI configurado e o `infra_k8s` já aplicado:
 

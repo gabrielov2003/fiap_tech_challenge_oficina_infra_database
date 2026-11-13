@@ -66,7 +66,14 @@ resource "aws_security_group" "db" {
   }
 }
 
+moved {
+  from = aws_db_instance.this
+  to   = aws_db_instance.this[0]
+}
+
 resource "aws_db_instance" "this" {
+  count = var.ligado ? 1 : 0
+
   identifier                   = var.db_identifier
   engine                       = "postgres"
   engine_version               = var.engine_version
@@ -89,28 +96,42 @@ resource "aws_db_instance" "this" {
   performance_insights_enabled = false
 }
 
+moved {
+  from = aws_ssm_parameter.db_host
+  to   = aws_ssm_parameter.db_host[0]
+}
+
 resource "aws_ssm_parameter" "db_host" {
+  count = var.ligado ? 1 : 0
+
   name  = "/oficina/db/host"
   type  = "String"
-  value = aws_db_instance.this.address
+  value = aws_db_instance.this[0].address
+}
+
+moved {
+  from = aws_ssm_parameter.db_port
+  to   = aws_ssm_parameter.db_port[0]
 }
 
 resource "aws_ssm_parameter" "db_port" {
+  count = var.ligado ? 1 : 0
+
   name  = "/oficina/db/port"
   type  = "String"
-  value = tostring(aws_db_instance.this.port)
+  value = tostring(aws_db_instance.this[0].port)
 }
 
 resource "aws_ssm_parameter" "db_name" {
   name  = "/oficina/db/name"
   type  = "String"
-  value = aws_db_instance.this.db_name
+  value = var.db_name
 }
 
 resource "aws_ssm_parameter" "db_username" {
   name  = "/oficina/db/username"
   type  = "String"
-  value = aws_db_instance.this.username
+  value = var.db_username
 }
 
 resource "aws_ssm_parameter" "db_password" {

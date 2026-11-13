@@ -65,6 +65,15 @@ jobs:
           -backend-config="region=${AWS_REGION}"
           -backend-config="use_lockfile=true"
 
+      - name: Lê se a infra está ligada
+        if: env.SKIP_AWS != 'true'
+        run: |
+          LIGADO=$(aws ssm get-parameter --name /oficina/infra/ligada --query Parameter.Value --output text 2>/dev/null || echo false)
+          echo "TF_VAR_ligado=$LIGADO" >> $GITHUB_ENV
+          if [ "$LIGADO" != "true" ]; then
+            echo "::notice::Infra desligada: cluster, nós, NAT Gateway e banco ficam fora. Use o workflow Ligar infra para subir tudo."
+          fi
+
       - name: Terraform plan
         if: env.SKIP_AWS != 'true' && !(github.event_name == 'push' && github.ref_name == 'main')
         run: terraform plan -lock-timeout=15m
