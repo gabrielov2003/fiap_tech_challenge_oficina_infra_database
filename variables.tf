@@ -57,3 +57,9 @@ variable "allowed_cidr_blocks" {
   type        = list(string)
   default     = []
 }
+
+variable "ligado" {
+  description = "Liga a instância RDS. Nos pipelines o valor vem de /oficina/infra/ligada no SSM"
+  type        = bool
+  default     = true
+}
